@@ -25,6 +25,9 @@ from oauth2client.file import Storage
 
 from geopy.geocoders import Nominatim
 geolocator = Nominatim()
+from geopy.distance import great_circle
+
+from copy import deepcopy
 
 from scopus import ScopusSearch
 from scopus import ScopusAuthor
@@ -146,7 +149,15 @@ def plotGantt(df):
     myAll.sort_values("Start",inplace=True)
     myAll.reset_index(drop=True,inplace=True)
 
-    fig = ff.create_gantt(myAll,colors = {'Position': 'rgb(220, 0, 0)','Master': (1, 0.9, 0.16),'PhD': 'rgb(0, 255, 100)'},index_col="Resource",group_tasks=True)
+#    layout = go.Layout(title='SPL Authorship Network',
+#                       height=1000,width = 500,
+#                       xaxis=dict(range=))
+
+    fig = ff.create_gantt(myAll,colors = {'Position': 'rgb(0, 0, 0)','Master': 'rgb(255, 0, 0)','PhD': 'rgb(0, 0, 255)'},index_col="Resource",group_tasks=True)
+    fig['layout']['xaxis']['range']=[dt.datetime(1997,5,1),dt.datetime(2017,12,31)]
+    fig['layout']['height']= 1500
+    fig['layout']['width']= 1200
+    fig['layout']['margin']= dict(b=20,l=200,r=5,t=40)
     py.offline.plot(fig)
     
 def plotGraph(A2 = None,removeMarco = False):
@@ -286,6 +297,8 @@ def countNations(df,normalize=False):
 def plotMap(df,geoDict = None):
 
     listNationalities, zvalues,_ = countNations(df)
+    europeWindow = ([-10,25],[37.5,60])
+    swissWindow = ([4.5,14.5],[43,49])
 
     baseMap = [go.Choropleth(locationmode = 'iso-3',
         locations = listNationalities,
@@ -299,12 +312,22 @@ def plotMap(df,geoDict = None):
         showscale = False,
         geo = 'geo2'))
     
+    baseMap.append(go.Choropleth(locationmode = 'iso-3',
+        locations = listNationalities,
+        z = zvalues,
+        showscale = False,
+        geo = 'geo3'))
     
+    allHomes = df['Home Town'].dropna().tolist()
+    allHomes = [town for sublist in allHomes for town in sublist]
+    
+    allCurrents = df['Current Town'].dropna().tolist()
+    allCurrents = [town for sublist in allCurrents for town in sublist]
     if geoDict is None:
-        allHomes = df['Home Town'].dropna().tolist()
-        allCurrents = df['Current Town'].dropna().tolist()
-        allTowns = [town for sublist in allHomes for town in sublist]
-        allTowns.extend([town for sublist in allCurrents for town in sublist])
+
+        
+        allTowns = list(allHomes)
+        allTowns.extend(allCurrents)
         
         geoDict = {}
         for town in np.unique(allTowns):
@@ -317,19 +340,82 @@ def plotMap(df,geoDict = None):
         if homeCity is not np.nan:
             for city in currentCity:
                 userGroup = dict(type='scattergeo',
-                                 lon = [geoDict[homeCity[0]]['lon'],geoDict['Zurich, Switzerland']['lon'],geoDict[city]['lon']],
-                                 lat = [geoDict[homeCity[0]]['lat'],geoDict['Zurich, Switzerland']['lat'],geoDict[city]['lat']],
+                                 lon = [geoDict[homeCity[0]]['lon'],geoDict['Zurich, Switzerland']['lon']],
+                                 lat = [geoDict[homeCity[0]]['lat'],geoDict['Zurich, Switzerland']['lat']],
                                  mode = 'markers+lines', 
+                                 line = dict(color='red',width=2,dash='solid'),
+                                 hoverinfo = 'text',
+                                 text = homeCity[0],
                                  geo = 'geo',
                                  #text = texts[i], 
                                  #textposition = textlocs[i],
                                  #textfont = dict(size = 18, color = 'black'),
                                  marker = dict(size=8, opacity = 1, line=dict(color='black',width = 1))
                                 )
-                userGroups.append(userGroup.copy())
+                
+                userGroups.append(deepcopy(userGroup))
+                # europe map
                 userGroup['geo'] = 'geo2'
-                userGroups.append(userGroup)
+                if (geoDict[homeCity[0]]['lon'] < europeWindow[0][0]) or (geoDict[homeCity[0]]['lon'] > europeWindow[0][1]) or (geoDict[homeCity[0]]['lat'] < europeWindow[1][0]) or (geoDict[homeCity[0]]['lat'] > europeWindow[1][1]):
+                    userGroup['line']['width'] = 0.5
+                    userGroup['line']['dash'] = 'dash'
+                userGroups.append(deepcopy(userGroup))
+                
+                # swiss map
+                if (geoDict[homeCity[0]]['lon'] < swissWindow[0][0]) or (geoDict[homeCity[0]]['lon'] > swissWindow[0][1]) or (geoDict[homeCity[0]]['lat'] < swissWindow[1][0]) or (geoDict[homeCity[0]]['lat'] > swissWindow[1][1]):
+                    userGroup['line']['width'] = 0.5
+                    userGroup['line']['dash'] = 'dash'
+                userGroup['geo'] = 'geo3'
+                userGroups.append(deepcopy(userGroup))
     
+    userGroups2 = []
+    for _,homeCity,currentCity in df[['Home Town','Current Town']].itertuples():
+        if homeCity is not np.nan:
+            for city in currentCity:
+                
+                userGroup = dict(type='scattergeo',
+                                 lon = [geoDict['Zurich, Switzerland']['lon'],geoDict[city]['lon']],
+                                 lat = [geoDict['Zurich, Switzerland']['lat'],geoDict[city]['lat']],
+                                 mode = 'markers+lines', 
+                                 line = dict(color='blue',width=2,dash='solid'),
+                                 hoverinfo = 'text',
+                                 text = city,
+                                 geo = 'geo',
+                                 #text = texts[i], 
+                                 #textposition = textlocs[i],
+                                 #textfont = dict(size = 18, color = 'black'),
+                                 marker = dict(size=8, opacity = 1, line=dict(color='black',width = 1))
+                                )
+                userGroups2.append(deepcopy(userGroup))
+                # europe map
+                userGroup['geo'] = 'geo2'
+                if (geoDict[city]['lon'] < europeWindow[0][0]) or (geoDict[city]['lon'] > europeWindow[0][1]) or (geoDict[city]['lat'] < europeWindow[1][0]) or (geoDict[city]['lat'] > europeWindow[1][1]):
+                    userGroup['line']['width'] = 0.5
+                    userGroup['line']['dash'] = 'dash'
+                userGroups2.append(deepcopy(userGroup))
+                
+                # swiss map
+                if (geoDict[city]['lon'] < swissWindow[0][0]) or (geoDict[city]['lon'] > swissWindow[0][1]) or (geoDict[city]['lat'] < swissWindow[1][0]) or (geoDict[city]['lat'] > swissWindow[1][1]):
+                    userGroup['line']['width'] = 0.5
+                    userGroup['line']['dash'] = 'dash'
+                userGroup['geo'] = 'geo3'
+                userGroups2.append(deepcopy(userGroup))
+
+    meanHome = np.mean([[geoDict[city]['lat'] for city in allHomes],
+                 [geoDict[city]['lon'] for city in allHomes]],axis=1)
+    meanCurrent = np.mean([[geoDict[city]['lat'] for city in allCurrents],
+                 [geoDict[city]['lon'] for city in allCurrents]],axis=1)
+        
+    meanDistFromHome = np.mean([great_circle((geoDict[city]['lat'],geoDict[city]['lon']),(geoDict['Zurich, Switzerland']['lat'],geoDict['Zurich, Switzerland']['lon'])).kilometers 
+                                for city in allHomes ])
+    meanDistToCurrent = np.mean([great_circle((geoDict[city]['lat'],geoDict[city]['lon']),(geoDict['Zurich, Switzerland']['lat'],geoDict['Zurich, Switzerland']['lon'])).kilometers 
+                                 for city in allCurrents ])
+    
+    print("The average home city is: {}".format(geolocator.reverse("{},{}".format(meanHome[0],meanHome[1]),timeout=20).address))
+    print("The average current city is: {}".format(geolocator.reverse("{},{}".format(meanCurrent[0],meanCurrent[1]),timeout=20).address))
+    
+    print("The mean distance travelled from home: {}".format(meanDistFromHome))
+    print("The mean distance travelled to current: {}".format(meanDistToCurrent))
 
     layout = go.Layout(
             #title = 'Current Towns',
@@ -348,8 +434,8 @@ def plotMap(df,geoDict = None):
             landcolor='white',
             showcountries = True,
             showcoastlines=True,
-            domain = dict(x = [0,.6],
-                          y = [0,1]),
+            domain = dict(x = [0,1],
+                          y = [0.47,1]),
             lonaxis = dict(range = [-115,180]),
             lataxis = dict(range = [-55,70])
         ),
@@ -359,18 +445,34 @@ def plotMap(df,geoDict = None):
                 landcolor = 'white',
                 showcountries = True,
                 showcoastlines = True,
-                domain = dict(x = [0.65, 1],
-                              y = [0, 1]),
-                lonaxis = dict(range = [-10,25]),
-                lataxis = dict(range = [37.5,60]))
+                domain = dict(x = [0.25, 0.5],
+                              y = [0, 0.45]),
+                lonaxis = dict(range = europeWindow[0]),
+                lataxis = dict(range = europeWindow[1])),
+    geo3 = dict(scope = 'europe',
+                resolution = 50,
+                showland = True,
+                landcolor = 'white',
+                showcountries = True,
+                showcoastlines = True,
+                domain = dict(x = [0.55, 0.75],
+                              y = [0, 0.45]),
+                lonaxis = dict(range = swissWindow[0]),
+                lataxis = dict(range = swissWindow[1]))
                 )
 
     
     myUsers = dict(data=baseMap+userGroups,
                    layout = layout)
     
+    py.offline.plot(myUsers,show_link = False,filename='coming.html')
     
-    py.offline.plot(myUsers)
+    myUsers = dict(data=baseMap+userGroups2,
+                   layout = layout)
+    
+    py.offline.plot(myUsers,show_link = False,filename='going.html')
+    
+    return geoDict
     
 def timePlot(df):
     # find the earliest time
@@ -384,14 +486,11 @@ def timePlot(df):
     
     
     myTimes = pd.date_range(bigBang,dt.datetime(2017,12,31),freq='3MS')
-    overTheYears = {key: dict(x=[],y=[],text=[]) for key in allNations+list(allTopics)}
-    overTheYears['M'] = []
-    overTheYears['F'] = []
-    overTheYears['gendertext'] = []
+    overTheYears = {key: dict(x=myTimes.union([dt.datetime(2017,12,15)]),y=[],text=[]) for key in allNations+list(allTopics)}
+    overTheYears['gender'] = dict(M = [], F = [],text = [])
     
     overTheYears['duration'] = dict(x=[],y=[])
     overTheYears['durationMean'] = []
-    overTheYears['durationtext'] = []
     
     
     PhDEnders = []
@@ -410,12 +509,12 @@ def timePlot(df):
                 )
         
         
-        for finisher in newFinishers:
+        for i,finisher in enumerate(newFinishers):
             try:
                 overTheYears['duration']['y'].extend(((df.loc[finisher,'End PhD']-df.loc[finisher,'Start PhD'])[df.loc[finisher,'Start PhD'].notnull()].dt.days / 365.25).tolist())
             except:
                 overTheYears['duration']['y'].append(((df.loc[finisher,'End PhD']-df.loc[finisher,'Start PhD']).days / 365.25))
-            overTheYears['duration']['x'].append(df.loc[finisher,'End PhD'])
+            overTheYears['duration']['x'].append(df.loc[finisher,'End PhD']+dt.timedelta(i*30/len(newFinishers)))
 
 
         if len(PhDEnders) > 0:
@@ -438,13 +537,13 @@ def timePlot(df):
                 
         # genders
         genders = presentdf['Gender'].value_counts()
-        overTheYears['M'].append(100)
+        overTheYears['gender']['M'].append(100)
         maleFraction = genders.M / presentdf['Gender'].count() * 100
-        overTheYears['gendertext'].append('{:3.1f}% girls, {:3.1f}% boys'.format(100-maleFraction,maleFraction))
+        overTheYears['gender']['text'].append('{:3.1f}% girls, {:3.1f}% boys'.format(100-maleFraction,maleFraction))
         if np.any(presentdf['Gender'].isin(['F'])):
-            overTheYears['F'].append(genders.F / presentdf['Gender'].count()*100)
+            overTheYears['gender']['F'].append(genders.F / presentdf['Gender'].count()*100)
         else:
-            overTheYears['F'].append(0)
+            overTheYears['gender']['F'].append(0)
             
         # topics
         presentTopics = [str.strip(topic) for _,topics in presentdf['Topic PhD / PostDoc (at SPL)'].iteritems() if topics is not np.nan for topic in topics ]
@@ -475,24 +574,28 @@ def timePlot(df):
         
     layout = go.Layout(xaxis=dict(range=[dt.datetime(1997,5,1),dt.datetime(2017,12,31)]))
     
+    layout['title'] = 'Nationalities over Time'
+    
     fig = go.Figure(data=traces,layout=layout)
     
     py.offline.plot(fig,show_link = False,filename='nationalities.html')
     
     genderTrace = [go.Scatter(x = myTimes,
-                y = overTheYears['F'],
-                text = overTheYears['gendertext'],
+                y = overTheYears['gender']['F'],
+                text = overTheYears['gender']['text'],
                 hoverinfo='text',
                 fill='tonexty',
                 name='Ladies',
                 mode = 'lines'),
             go.Scatter(x = myTimes,
-                y = overTheYears['M'],
-                text = overTheYears['gendertext'],
+                y = overTheYears['gender']['M'],
+                text = overTheYears['gender']['text'],
                 hoverinfo='text',
                 fill='tonexty',
                 name='Gentlemen',
                 mode = 'lines')]
+            
+    layout['title'] = 'Gender over Time'
             
     fig2 = go.Figure(data=genderTrace,layout=layout)
     py.offline.plot(fig2,show_link = False,filename='genders.html')
@@ -508,6 +611,7 @@ def timePlot(df):
                 hoverinfo='x+name+text',
                 mode = 'lines'))
         
+    layout['title'] = 'Topics over Time'
     
     fig3 = go.Figure(data=topicTrace,layout=layout)
     
@@ -515,16 +619,25 @@ def timePlot(df):
     
     durationTrace = [go.Scatter(x = myTimes,
                 y = overTheYears['durationMean'],
-                text = overTheYears['durationtext'],
-                hoverinfo='text',
+                line = dict(width=5),
+                hoverinfo='none',
+                hovertext = "",
+                text = '',
                 name='Duration',
                 mode = 'lines'),
             go.Scatter(x = overTheYears['duration']['x'],
                 y = overTheYears['duration']['y'],
-                text = overTheYears['durationtext'],
                 hoverinfo='text',
+                text = PhDEnders,
                 name='Duration',
-                mode = 'markers'),]
+                mode = 'markers',
+                marker = dict(
+                        size=15,
+                        color = 'red'))]
+
+#    layout['hovermode'] = 'closest'
+    layout['showlegend'] = False
+    layout['title'] = 'PhD Duration over Time'
             
     fig4 = go.Figure(data=durationTrace,layout=layout)
     py.offline.plot(fig4,show_link = False,filename='duration.html')
