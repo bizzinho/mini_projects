@@ -8,6 +8,8 @@ import networkx as nx
 import pdb
 import itertools
 
+import calendar
+
 import plotly as py
 import plotly.figure_factory as ff
 import plotly.graph_objs as go
@@ -17,6 +19,9 @@ import matplotlib.cm as cm
 
 import pycountry
 from collections import Counter
+
+from nltk.corpus import stopwords
+from wordcloud import WordCloud
 
 from apiclient import discovery
 from oauth2client import client
@@ -89,7 +94,7 @@ def main():
                               discoveryServiceUrl=discoveryUrl)
 
     spreadsheetId = '1qUpuZdj8Tddw-ZMDo530JGWUC7Cz-vuRNGqPGNaNhgo'
-    rangeName = 'Sheet1!A2:N83'
+    rangeName = 'Sheet1!A2:N85'
     result = service.spreadsheets().values().get(
         spreadsheetId=spreadsheetId, range=rangeName).execute()
     values = result.get('values', [])
@@ -118,6 +123,11 @@ def main():
     for i in range(5,11):
         #print(i)
         df.iloc[:,i] = pd.to_datetime(df.iloc[:,i])
+        
+    # set end dates to end of month unless someone was really specific
+    df['End Master'] = df['End Master'].apply(lambda x: dt.datetime(x.year,x.month,calendar.monthrange(x.year,x.month)[1]) if (pd.notnull(x)) and (x.day == 1) else x)
+    df['End PhD'] = df['End PhD'].apply(lambda x: dt.datetime(x.year,x.month,calendar.monthrange(x.year,x.month)[1]) if (pd.notnull(x)) and (x.day == 1) else x)
+    df['End Position'] = df['End Position'].apply(lambda x: dt.datetime(x.year,x.month,calendar.monthrange(x.year,x.month)[1]) if (pd.notnull(x)) and (x.day == 1) else x)
     
     df['Home Town'] = df['Home Town'].str.split(';')    
     df['Current Town'] = df['Current Town'].str.split(';')
@@ -128,6 +138,29 @@ def main():
     return df, df_total
 
 def plotGantt(df):
+    
+    # sorry but no
+
+    
+    
+    unwanted = ['Arpagaus Cordin','Franziska Morganti','Siria Albano']
+    
+    df = df.copy()
+    
+#    duration_master = (df['End Master']-df['Start Master'])
+#    duration_master.loc[duration_master.isnull()] = pd.Timedelta('0 days')
+#    
+#    duration_phd = (df['End PhD']-df['Start PhD'])
+#    duration_phd.loc[duration_phd.isnull()] = pd.Timedelta('0 days')
+#    
+#    duration_pos = (df['End Position']-df['Start Position'])
+#    duration_pos.loc[duration_pos.isnull()] = pd.Timedelta('0 days')
+#    
+    df.drop(unwanted,inplace=True)
+    df['Start Position'] = df['Start Position'].apply(lambda x: np.max([df.loc['Marco Mazzotti','Start Position'],x]))
+    df['Start PhD'] = df['Start PhD'].apply(lambda x: np.max([df.loc['Marco Mazzotti','Start Position'],x]))
+    df['End Position'] = df['End Position'].apply(lambda x: np.max([df.loc['Marco Mazzotti','Start Position'],x]))
+    
     # all Position starts
     myPos = df[["Name","Start Position","End Position"]].copy()
     myPos['Resource'] = "Position"
@@ -158,9 +191,10 @@ def plotGantt(df):
     fig['layout']['height']= 1500
     fig['layout']['width']= 1200
     fig['layout']['margin']= dict(b=20,l=200,r=5,t=40)
-    py.offline.plot(fig)
+    py.offline.plot(fig,show_link =False,filename = 'GanttChart.html')
+#    py.offline.plot(fig,image='svg')
     
-def plotGraph(A2 = None,removeMarco = False):
+def plotGraph(A2 = None,removeMarco = True,pos = None):
     
     if A2 is None:
         A2 = pd.read_excel('collaborators_scopus.csv')
@@ -170,7 +204,7 @@ def plotGraph(A2 = None,removeMarco = False):
         myFullNames = list(A2.columns)
     
     # simplify names
-    myNames = [name.split()[0] if name.split()[0] not in ['Shigeharu','Matthäus','Stefan','Matteo','Markus','Christian','Giovanni','Subrahmaniam','José'] else 
+    myNames = [name.split()[0] if name.split()[0] not in ['Shigeharu','Matthäus','Stefan','Matteo','Markus','Christian','Giovanni','Subrahmaniam','José','Johannes'] else 
                'John' if name.split()[0] == 'Giovanni' else 
                'Thes' if name.split()[0] == 'Matthäus' else 
                'Hari' if name.split()[0] == 'Subrahmaniam' else 
@@ -178,6 +212,7 @@ def plotGraph(A2 = None,removeMarco = False):
                'Shige' if name.split()[0] == 'Shigeharu' else 
                'Matteo S.' if name.split()[-1] == 'Salvalaglio' else 
                'Matteo G.' if name.split()[-1] == 'Gazzani' else 
+               'Johannes K.' if name.split()[-1] == 'Kluge' else 
                name.split()[-1] for name in list(myFullNames)]
     
     A = np.nan_to_num(np.matrix(A).astype(float))
@@ -199,7 +234,16 @@ def plotGraph(A2 = None,removeMarco = False):
 #        myNames.pop(isolated_node)
     G.remove_nodes_from(nx.isolates(G)) 
     
-    pos = nx.spring_layout(G,dim=2,k=1/np.sqrt(G.number_of_nodes()),iterations = 200)
+    posers = [(-0.5,-1),(1.5,-1),(0.5,1)]
+    
+    fixed_pos = {myNames.index(name): posers[i] for i, name in enumerate(['Dave','Arvind','Lisa'])}
+#    fixed_nodes = fixed_pos.keys()
+    
+#    fixed_pos = None
+    fixed_nodes = None
+    
+    if pos is None:
+        pos = nx.spring_layout(G,pos=fixed_pos,fixed=fixed_nodes,dim=2,k=1/np.sqrt(G.number_of_nodes()),iterations = 200)
 #    pos = nx.circular_layout(G)
         
     edgeWeights = [d['weight'] for (_,_,d) in G.edges(data=True)]
@@ -227,7 +271,7 @@ def plotGraph(A2 = None,removeMarco = False):
         x=[],
         y=[],
         mode='markers+text',
-        textposition='bottom',
+        textposition=[],
         hoverinfo='text',
         text = [],
         marker=go.Marker(
@@ -238,10 +282,10 @@ def plotGraph(A2 = None,removeMarco = False):
             colorscale='copper',
             reversescale=False,
             color=[],
-            size=20,
+            size=17,
             colorbar=dict(
                 thickness=15,
-                title='Node Connections',
+                title='SPL Connections',
                 xanchor='left',
                 titleside='right'
             ),
@@ -251,8 +295,30 @@ def plotGraph(A2 = None,removeMarco = False):
         x, y = pos[node]
         node_trace['x'].append(x)
         node_trace['y'].append(y)
-        node_trace['text'].append(myNames[node])
-        
+        special = ['Arvind','Johanna','Matteo G.','Jochen','Dave','Thomas','Jeroen']
+        if myNames[node] not in special:
+            node_trace['text'].append(myNames[node])
+        else:
+            node_trace['text'].append('')
+            
+        lefties = ['Stefanie','Werner','Galatea','Ian','Bötschi','Fabio','Janik','Lorenzo','Thes',
+                   'Lars','Orazio','Max','Dorian','Johannes K.']
+        toppies = ['Mohammad','Ashwin','Detlef',
+                   'Zoran','Paolo','Paco','Daniel','Alba']
+        toplefties = ['Ronny']
+        righties = ['Mischa','Hari','Hänchen','Valentina','Langel','Shige','Siria','Lisa','Franziska',
+                    'Francesco','Nathalie','Ottiger']
+        if myNames[node] in lefties:
+            node_trace['textposition'].append('middle left')
+        elif myNames[node] in toppies:
+            node_trace['textposition'].append('top')
+        elif myNames[node] in righties:
+            node_trace['textposition'].append('middle right')
+        elif myNames[node] in toplefties:
+            node_trace['textposition'].append('top left')
+        else:
+            node_trace['textposition'].append('bottom')
+            
     for node, adjacencies in enumerate(G.adjacency_list()):
         if node > 0:
             node_trace['marker']['color'].append(len(adjacencies))
@@ -266,6 +332,15 @@ def plotGraph(A2 = None,removeMarco = False):
     fig = go.Figure(data=go.Data(edge_trace+[node_trace]),
          layout=go.Layout(
             title='SPL Authorship Network',
+            annotations = [
+                    dict(x=0.375,y=0.615,showarrow=False,text='Arvind'),
+                    dict(x=0.59,y=0.6365,showarrow=False,text='Johanna'),
+                    dict(x=0.6625,y=0.855,showarrow=False,text='Matteo G.'),
+                    dict(x=0.395,y=0.225,showarrow=False,text='Jochen'),
+                    dict(x=0.5,y=0.225,showarrow=False,text='Jeroen'),
+                    dict(x=0.395,y=0.5,showarrow=False,text='Thomas'),
+                    dict(x=0.5,y=0.5,showarrow=False,text='Dave')
+                    ],
             titlefont=dict(size=16),
             showlegend=False,
             hovermode='closest',
@@ -273,9 +348,9 @@ def plotGraph(A2 = None,removeMarco = False):
             xaxis=go.XAxis(showgrid=False, zeroline=False, showticklabels=False),
             yaxis=go.YAxis(showgrid=False, zeroline=False, showticklabels=False)))
 
-    py.offline.plot(fig)
+    py.offline.plot(fig,show_link=False,filename='graph.html',image_height=1500,image_width=2000,image='png')
     
-    return G
+    return G, pos
     
 def countNations(df,normalize=False):
     xx = df['Nationality'].str.split(',')
@@ -359,12 +434,16 @@ def plotMap(df,geoDict = None):
                 if (geoDict[homeCity[0]]['lon'] < europeWindow[0][0]) or (geoDict[homeCity[0]]['lon'] > europeWindow[0][1]) or (geoDict[homeCity[0]]['lat'] < europeWindow[1][0]) or (geoDict[homeCity[0]]['lat'] > europeWindow[1][1]):
                     userGroup['line']['width'] = 0.5
                     userGroup['line']['dash'] = 'dash'
+                else:
+                    userGroup['marker']['size'] = 15
                 userGroups.append(deepcopy(userGroup))
                 
                 # swiss map
                 if (geoDict[homeCity[0]]['lon'] < swissWindow[0][0]) or (geoDict[homeCity[0]]['lon'] > swissWindow[0][1]) or (geoDict[homeCity[0]]['lat'] < swissWindow[1][0]) or (geoDict[homeCity[0]]['lat'] > swissWindow[1][1]):
                     userGroup['line']['width'] = 0.5
                     userGroup['line']['dash'] = 'dash'
+                else:
+                    userGroup['marker']['size'] = 20
                 userGroup['geo'] = 'geo3'
                 userGroups.append(deepcopy(userGroup))
     
@@ -392,12 +471,16 @@ def plotMap(df,geoDict = None):
                 if (geoDict[city]['lon'] < europeWindow[0][0]) or (geoDict[city]['lon'] > europeWindow[0][1]) or (geoDict[city]['lat'] < europeWindow[1][0]) or (geoDict[city]['lat'] > europeWindow[1][1]):
                     userGroup['line']['width'] = 0.5
                     userGroup['line']['dash'] = 'dash'
+                else:
+                    userGroup['marker']['size'] = 15
                 userGroups2.append(deepcopy(userGroup))
                 
                 # swiss map
                 if (geoDict[city]['lon'] < swissWindow[0][0]) or (geoDict[city]['lon'] > swissWindow[0][1]) or (geoDict[city]['lat'] < swissWindow[1][0]) or (geoDict[city]['lat'] > swissWindow[1][1]):
                     userGroup['line']['width'] = 0.5
                     userGroup['line']['dash'] = 'dash'
+                else:
+                    userGroup['marker']['size'] = 20
                 userGroup['geo'] = 'geo3'
                 userGroups2.append(deepcopy(userGroup))
 
@@ -436,7 +519,7 @@ def plotMap(df,geoDict = None):
             showcoastlines=True,
             domain = dict(x = [0,1],
                           y = [0.47,1]),
-            lonaxis = dict(range = [-115,180]),
+            lonaxis = dict(range = [-115,162]),
             lataxis = dict(range = [-55,70])
         ),
     geo2 = dict(scope = 'europe',
@@ -445,7 +528,7 @@ def plotMap(df,geoDict = None):
                 landcolor = 'white',
                 showcountries = True,
                 showcoastlines = True,
-                domain = dict(x = [0.25, 0.5],
+                domain = dict(x = [0., 0.51],
                               y = [0, 0.45]),
                 lonaxis = dict(range = europeWindow[0]),
                 lataxis = dict(range = europeWindow[1])),
@@ -455,7 +538,7 @@ def plotMap(df,geoDict = None):
                 landcolor = 'white',
                 showcountries = True,
                 showcoastlines = True,
-                domain = dict(x = [0.55, 0.75],
+                domain = dict(x = [0.5, 0.97],
                               y = [0, 0.45]),
                 lonaxis = dict(range = swissWindow[0]),
                 lataxis = dict(range = swissWindow[1]))
@@ -465,12 +548,12 @@ def plotMap(df,geoDict = None):
     myUsers = dict(data=baseMap+userGroups,
                    layout = layout)
     
-    py.offline.plot(myUsers,show_link = False,filename='coming.html')
+    py.offline.plot(myUsers,show_link = False,filename='coming.html',image='png',image_height=2000, image_width=2500)
     
     myUsers = dict(data=baseMap+userGroups2,
                    layout = layout)
     
-    py.offline.plot(myUsers,show_link = False,filename='going.html')
+    py.offline.plot(myUsers,show_link = False,filename='going.html',image='png',image_height=2000, image_width=2500)
     
     return geoDict
     
@@ -578,7 +661,8 @@ def timePlot(df):
     
     fig = go.Figure(data=traces,layout=layout)
     
-    py.offline.plot(fig,show_link = False,filename='nationalities.html')
+#    py.offline.plot(fig,show_link = False,filename='nationalities.html')
+    py.offline.plot(fig,image='svg')
     
     genderTrace = [go.Scatter(x = myTimes,
                 y = overTheYears['gender']['F'],
@@ -598,7 +682,8 @@ def timePlot(df):
     layout['title'] = 'Gender over Time'
             
     fig2 = go.Figure(data=genderTrace,layout=layout)
-    py.offline.plot(fig2,show_link = False,filename='genders.html')
+#    py.offline.plot(fig2,show_link = False,filename='genders.html')
+    py.offline.plot(fig2,image='svg')
     
     topicTrace = []
     for topic in allTopics:
@@ -616,6 +701,7 @@ def timePlot(df):
     fig3 = go.Figure(data=topicTrace,layout=layout)
     
     py.offline.plot(fig3,show_link = False,filename='topics.html')
+    py.offline.plot(fig3,image='svg')
     
     durationTrace = [go.Scatter(x = myTimes,
                 y = overTheYears['durationMean'],
@@ -640,7 +726,8 @@ def timePlot(df):
     layout['title'] = 'PhD Duration over Time'
             
     fig4 = go.Figure(data=durationTrace,layout=layout)
-    py.offline.plot(fig4,show_link = False,filename='duration.html')
+#    py.offline.plot(fig4,show_link = False,filename='duration.html')
+#    py.offline.plot(fig4,image='svg')
     
     return overTheYears
 
@@ -682,10 +769,13 @@ def scopusCrawl(mydf_tot,myCollabos = None):
     checkedPapers = []
     myCollaboPapers = []
     myCollabos = []
+    totalCitations = 0
     for author in myAuthors['ScopusID']:
         authorName = myAuthors[myAuthors['ScopusID']==author]['Name']
         print(authorName)
+        
         scopusAuthor = ScopusAuthor(author)
+        totalCitations += scopusAuthor.citation_count
         papers = scopusAuthor.get_document_eids()
         adjac.loc[authorName,authorName] = len(papers)
         for paper in papers:
@@ -730,6 +820,7 @@ def scopusCrawl(mydf_tot,myCollabos = None):
                       ['Marco Mazzotti','Marco Mazzotti'],# 2007 book chapter
                       ['Marco Mazzotti','Marco Mazzotti']])# 2008 book chapter
     
+    print("\nTotal Citations: {}\n".format(totalCitations))
 
     for i in range(2,7):
         killercombos = [tuple(collabo) for collabo in myCollabos if len(collabo)==i]
@@ -766,6 +857,23 @@ def scopusCrawl(mydf_tot,myCollabos = None):
 #            
 #    return adjac, collabo_duos
     
+def wordCloud():
+    mytext = open('allAbstracts.txt',encoding='utf8').read()
+    mytext = mytext.replace('process ','processes ')
+#    mytext = mytext.replace('processes',' ')
+    fakeText = [np.random.choice(mytext.split())+' '+np.random.choice(mytext.split())+' laboratory ' for i in range(180)]
+    
+    mytext = mytext+"".join(fakeText)
+    
+    stoplist = stopwords.words('english')
+    stoplist.extend(['using','based','two','used','shown','provide','presented','approach'])
+    wc=WordCloud(background_color='white',height=840,width=600,stopwords=stoplist,colormap='seismic',scale=1.2).generate(mytext.lower())
+    mpl.pyplot.imshow(wc, interpolation='bilinear')
+
+    #ax.set_adjustable('box-forced')
+    mpl.pyplot.axis("off")
+    mpl.pyplot.show()
+    mpl.pyplot.savefig('SPL_cloud.png',dpi=2000)
  
     
 if __name__ == '__main__':

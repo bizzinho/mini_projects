@@ -1,4 +1,10 @@
 *.ipynb_checkpoints
+*.png
+*.pdf
+*.svg
+*.eps
+*.html
+*.pickle
 *__pycache__
 *temp-plot*
 *~$*
