@@ -6,5 +6,11 @@
 *.html
 *.pickle
 *__pycache__
-*temp-plot*
 *~$*
+*.pptx
+*.json
+*.xlsx
+*.csv
+*.txt
+*.xls
+*.zip
