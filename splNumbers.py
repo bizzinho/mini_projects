@@ -379,18 +379,21 @@ def plotMap(df,geoDict = None):
         locations = listNationalities,
         z = zvalues,
         showscale = False,
+        hoverinfo='location+z',
         geo = 'geo')]
     
     baseMap.append(go.Choropleth(locationmode = 'iso-3',
         locations = listNationalities,
         z = zvalues,
         showscale = False,
+        hoverinfo='location+z',
         geo = 'geo2'))
     
     baseMap.append(go.Choropleth(locationmode = 'iso-3',
         locations = listNationalities,
         z = zvalues,
         showscale = False,
+        hoverinfo='location+z',
         geo = 'geo3'))
     
     allHomes = df['Home Town'].dropna().tolist()
@@ -411,7 +414,7 @@ def plotMap(df,geoDict = None):
             geoDict[town] =  dict(lon=myloc.longitude,lat = myloc.latitude)
     
     userGroups = []
-    for _,homeCity,currentCity in df[['Home Town','Current Town']].itertuples():
+    for name,homeCity,currentCity in df[['Home Town','Current Town']].itertuples():
         if homeCity is not np.nan:
             for city in currentCity:
                 userGroup = dict(type='scattergeo',
@@ -435,7 +438,7 @@ def plotMap(df,geoDict = None):
                     userGroup['line']['width'] = 0.5
                     userGroup['line']['dash'] = 'dash'
                 else:
-                    userGroup['marker']['size'] = 15
+                    userGroup['marker']['size'] = 10
                 userGroups.append(deepcopy(userGroup))
                 
                 # swiss map
@@ -443,7 +446,7 @@ def plotMap(df,geoDict = None):
                     userGroup['line']['width'] = 0.5
                     userGroup['line']['dash'] = 'dash'
                 else:
-                    userGroup['marker']['size'] = 20
+                    userGroup['marker']['size'] = 12
                 userGroup['geo'] = 'geo3'
                 userGroups.append(deepcopy(userGroup))
     
@@ -472,7 +475,7 @@ def plotMap(df,geoDict = None):
                     userGroup['line']['width'] = 0.5
                     userGroup['line']['dash'] = 'dash'
                 else:
-                    userGroup['marker']['size'] = 15
+                    userGroup['marker']['size'] = 10
                 userGroups2.append(deepcopy(userGroup))
                 
                 # swiss map
@@ -480,7 +483,7 @@ def plotMap(df,geoDict = None):
                     userGroup['line']['width'] = 0.5
                     userGroup['line']['dash'] = 'dash'
                 else:
-                    userGroup['marker']['size'] = 20
+                    userGroup['marker']['size'] = 12
                 userGroup['geo'] = 'geo3'
                 userGroups2.append(deepcopy(userGroup))
 
@@ -528,7 +531,7 @@ def plotMap(df,geoDict = None):
                 landcolor = 'white',
                 showcountries = True,
                 showcoastlines = True,
-                domain = dict(x = [0., 0.51],
+                domain = dict(x = [0.2, 0.5],
                               y = [0, 0.45]),
                 lonaxis = dict(range = europeWindow[0]),
                 lataxis = dict(range = europeWindow[1])),
@@ -538,7 +541,7 @@ def plotMap(df,geoDict = None):
                 landcolor = 'white',
                 showcountries = True,
                 showcoastlines = True,
-                domain = dict(x = [0.5, 0.97],
+                domain = dict(x = [0.50, 0.78],
                               y = [0, 0.45]),
                 lonaxis = dict(range = swissWindow[0]),
                 lataxis = dict(range = swissWindow[1]))
@@ -548,12 +551,12 @@ def plotMap(df,geoDict = None):
     myUsers = dict(data=baseMap+userGroups,
                    layout = layout)
     
-    py.offline.plot(myUsers,show_link = False,filename='coming.html',image='png',image_height=2000, image_width=2500)
+    py.offline.plot(myUsers,show_link = False,filename='coming.html',image_height=2000, image_width=2500)
     
     myUsers = dict(data=baseMap+userGroups2,
                    layout = layout)
     
-    py.offline.plot(myUsers,show_link = False,filename='going.html',image='png',image_height=2000, image_width=2500)
+    py.offline.plot(myUsers,show_link = False,filename='going.html',image_height=2000, image_width=2500)
     
     return geoDict
     
@@ -661,20 +664,20 @@ def timePlot(df):
     
     fig = go.Figure(data=traces,layout=layout)
     
-#    py.offline.plot(fig,show_link = False,filename='nationalities.html')
-    py.offline.plot(fig,image='svg')
+    py.offline.plot(fig,show_link = False,filename='nationalities.html')
+#    py.offline.plot(fig,image='svg')
     
     genderTrace = [go.Scatter(x = myTimes,
                 y = overTheYears['gender']['F'],
                 text = overTheYears['gender']['text'],
-                hoverinfo='text',
+                hoverinfo='x+text',
                 fill='tonexty',
                 name='Ladies',
                 mode = 'lines'),
             go.Scatter(x = myTimes,
                 y = overTheYears['gender']['M'],
                 text = overTheYears['gender']['text'],
-                hoverinfo='text',
+                hoverinfo='x+text',
                 fill='tonexty',
                 name='Gentlemen',
                 mode = 'lines')]
@@ -682,8 +685,8 @@ def timePlot(df):
     layout['title'] = 'Gender over Time'
             
     fig2 = go.Figure(data=genderTrace,layout=layout)
-#    py.offline.plot(fig2,show_link = False,filename='genders.html')
-    py.offline.plot(fig2,image='svg')
+    py.offline.plot(fig2,show_link = False,filename='genders.html')
+#    py.offline.plot(fig2,image='svg')
     
     topicTrace = []
     for topic in allTopics:
@@ -701,7 +704,7 @@ def timePlot(df):
     fig3 = go.Figure(data=topicTrace,layout=layout)
     
     py.offline.plot(fig3,show_link = False,filename='topics.html')
-    py.offline.plot(fig3,image='svg')
+#    py.offline.plot(fig3,image='svg')
     
     durationTrace = [go.Scatter(x = myTimes,
                 y = overTheYears['durationMean'],
@@ -726,7 +729,7 @@ def timePlot(df):
     layout['title'] = 'PhD Duration over Time'
             
     fig4 = go.Figure(data=durationTrace,layout=layout)
-#    py.offline.plot(fig4,show_link = False,filename='duration.html')
+    py.offline.plot(fig4,show_link = False,filename='duration.html')
 #    py.offline.plot(fig4,image='svg')
     
     return overTheYears
