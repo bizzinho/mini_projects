@@ -15,12 +15,9 @@ from googleapiclient.discovery import build
 import base64
 from email.mime.text import MIMEText
 import pickle
+import time
 
-#emFolder_Ana = r'C:\Users\Dave\Desktop\AnaTest\\'  # location of Ana's pix
-#emFolder_Dave = r'C:\Users\Dave\Desktop\DaveTest\\'  # location of Dave's pix
-#
-#emFolder_photoStation = r'C:\Users\Dave\Desktop\sharedTest\\' # photostation folder
-#unsureFolder = r'C:\Users\Dave\Desktop\unsureTest\\' # unsure folder
+
 baseFolder = '/volume1/photo/PhonePix/'
 
 emFolder_Ana = baseFolder+'Emily/'  # location of Ana's pix
@@ -185,14 +182,22 @@ if n_newPix > 0:
     
     GMAIL = build('gmail', 'v1', credentials=cred)
     
-    recipients =  ['dave.ochsenbein@gmail.com', 'ana.grangeia@outlook.com', 'ochsenbein-veglio@gmx.ch' ,'amsgrangeia@gmail.com', 'deisygrangeia@gmail.com', 'ericagrangeia@gmail.com']
+    recipients =  ['dave.ochsenbein@gmail.com', 'ana.grangeia@outlook.com', 'ochsenbein-veglio@gmx.ch' ,'amsgrangeia@gmail.com', 'deisygrangeia@gmail.com', 'ericagrangeia@gmail.com', 'ott.floriandimitri@gmail.com']
     
     for recipient in recipients:
-    
-        message = MIMEText(u'Hey/Olá/Hoi/Ciao fans of Emily!<br><br>There are {} new pictures of Emily! Go have a look <a href="https://SchmexyServer.fr.quickconnect.to/photo/share/AJSOOf1W">here</a>!<br><br>Ana & Dave'.format(n_newPix),'html')
-        message['to'] = recipient
-        message['subject'] = '{} new pictures of Emily :)'.format(n_newPix)
-        msg = {'raw': base64.urlsafe_b64encode(message.as_string().encode()).decode()}
+        n_tries = 1
+        mailSent = False
+        while (n_tries <= 5) and (mailSent == False):
         
-        message = (GMAIL.users().messages().send(userId='me', body=msg)
-                       .execute())
+            try:
+                message = MIMEText(u'Hey/Olá/Hoi/Ciao fans of Emily!<br><br>There are {} new pictures of Emily! Go have a look <a href="https://SchmexyServer.fr.quickconnect.to/photo/share/AJSOOf1W">here</a>!<br><br>Ana & Dave'.format(n_newPix),'html')
+                message['to'] = recipient
+                message['subject'] = '{} new pictures of Emily :)'.format(n_newPix)
+                msg = {'raw': base64.urlsafe_b64encode(message.as_string().encode()).decode()}
+                
+                message = (GMAIL.users().messages().send(userId='me', body=msg)
+                               .execute())
+                mailSent = True
+            except:
+                n_tries += 1
+                time.sleep(60)
