@@ -13,7 +13,27 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from sklearn.cross_decomposition import PLSRegression
+from sklearn.linear_model import ElasticNet
 from sklearn.metrics import r2_score, mean_absolute_error
+from sklearn.preprocessing import StandardScaler
+
+def getResults(estimator, X, Y):
+    
+    Ypred = estimator.predict(X).ravel()
+    
+    plt.plot(Y, Ypred, 'o')
+    plt.plot([Y.min(), Y.max()],[Y.min(), Y.max()],'--')
+    ax = plt.gca()
+    ax.set_xlabel("Observed Price k€")
+    ax.set_ylabel("Predicted Price k€")
+    plt.show()
+    r2 = r2_score(Y, Ypred)
+    MAE = mean_absolute_error(Y, Ypred)
+    
+    # compute mean absolute percentage error (MAPE)
+    MAPE = np.mean(np.abs(Y - Ypred) / Y * 100)
+    
+    return r2, MAE, MAPE
 
 def makeSoup(url):
     http = urllib3.PoolManager()
@@ -65,23 +85,27 @@ X['Energy Certificate'] = myImpute(X['Energy Certificate'], 'mode')
 
 X[['Garage', 'Elevator','AC','Solar Panels','Piscina','Veranda','Terrace','Built-in Closets']] = myImpute(X[['Garage', 'Elevator','AC','Solar Panels','Piscina','Veranda','Terrace','Built-in Closets']], 'No')
 
-myCats = ['Beach','Type','Energy Certificate', 'Garage', 'Elevator','AC','Solar Panels','Piscina','Veranda','Terrace','Built-in Closets']
+myCats = ['Beach','Type','Energy Certificate', 'Garage', 'Elevator','AC','Solar Panels','Piscina','Veranda','Terrace','Built-in Closets','Seaview','Riaview']
 
 X[myCats] = X[myCats].astype('category')
 
 X = pd.get_dummies(X)
 
+Xm = X.to_numpy(dtype='float64')
+Ym = Y.to_numpy(dtype='float64').ravel()
+
+
 pls = PLSRegression(2)
-pls.fit(X.values, Y.values)
-plt.plot(Y.values, pls.predict(X.values), 'o')
-plt.plot([Y.min(), Y.max()],[Y.min(), Y.max()],'--')
-ax = plt.gca()
-ax.set_xlabel("Observed Price k€")
-ax.set_ylabel("Predicted Price k€")
-r2 = r2_score(Y.values, pls.predict(X.values))
-MAE = mean_absolute_error(Y.values, pls.predict(X.values))
+pls.fit(Xm, Ym)
 
-# compute mean absolute percentage error (MAPE)
-MAPE = np.mean(np.abs(Y.values - pls.predict(X.values)) / Y.values * 100)
+print("PLS Model")
+r2, MAE, MAPE = getResults(pls, Xm, Ym)
+print("R2= {:4.2f}; MAE={:4.2f}k Euros; MAPE = {:4.1f}%".format(r2, MAE, MAPE))
 
+## Elastic Net
+X0m = StandardScaler().fit_transform(Xm)
+eln = ElasticNet(l1_ratio=0.5)
+eln.fit(X0m, Ym)
+print("Elastic Net")
+r2, MAE, MAPE = getResults(eln, X0m, Ym)
 print("R2= {:4.2f}; MAE={:4.2f}k Euros; MAPE = {:4.1f}%".format(r2, MAE, MAPE))

@@ -1,0 +1,5 @@
+- predict year, floor, energy based on other vars
+- predict lote of houses based on other vars
+
+- CV with elastic net
+- RF, ensemble methods
