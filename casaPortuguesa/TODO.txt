@@ -3,3 +3,6 @@
 
 - CV with elastic net
 - RF, ensemble methods
+
+- Residuals vs price
+- investigate biggest outliers
