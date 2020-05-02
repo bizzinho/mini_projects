@@ -1,7 +1,9 @@
 CRAWLER
-- keep list of all IDs that were scanned
 - keep date/time of last scan and only search mails until then
-- crawl through annuncia and get relevant info
+- ensure that page is accessed correctly
+- move fully read html files to done folder
+- store text files from which no information could be extracted
+- remaining infos to be read out: Beach, Type, Size (Uteis), Lote, Bathrooms, Year Built, Garage, Floor, Elevator,Energy Certificate, AC, Solar Panels, Piscina, Veranda,	Terrace, Built-in Closets, Seaview,	Riaview, Beach Distance, Ria Distance, Orientation
 
 DATA IMPUTATION
 - predict year, floor, energy based on other vars
