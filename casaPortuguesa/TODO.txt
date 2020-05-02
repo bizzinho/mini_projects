@@ -1,8 +1,16 @@
+CRAWLER
+- keep list of all IDs that were scanned
+- keep date/time of last scan and only search mails until then
+- crawl through annuncia and get relevant info
+
+DATA IMPUTATION
 - predict year, floor, energy based on other vars
 - predict lote of houses based on other vars
 
+REGRESSION
 - CV with elastic net
 - RF, ensemble methods
 
+MODEL VALIDATION
 - Residuals vs price
 - investigate biggest outliers
