@@ -82,41 +82,5 @@ for listing in allNewListings:
         f.write(page)
     time.sleep(10) # we are benign and don't want to stress the servers
 
-# add new listings in DB
-df = pd.read_excel('Apartment_PT.xlsx',index_col = 0
-                   sheet_name = 'DB')
 
-df_new = pd.DataFrame(columns = df.columns)
-df_new.index.name = df.index.name
-# go over all new html files that haven't been read out yet (are not in folder 'done')
-for fname in [file for file in os.listdir('./pages_html/') if (file!='done') and (file.endswith('.html'))]:
-    # read file in
-    with open('./pages_html/'+fname,'r',encoding="utf-8") as f:
-        page = f.read()
-    soup = BeautifulSoup(page)
-    
-    # remember ID
-    ID = 'IDEALISTA_'+fname[:-15]
-    
-    # find price
-    price = float(soup.find('span',attrs = {'class':'info-data-price'}).text.replace('€',''))
-    
-    # size 
-    size = float(soup.find('div',attrs = {'class':'info-features'}).text.split('m² construídos')[0])
-    
-    # bedrooms
-    for info in soup.find('div',attrs = {'class':'info-features'}).find_all('span')[::-1]:
-        if (len(info.text) == 2) and (info.text.startswith('T')):
-            bedrooms = int(info.text[1])
-            break
-    
-    # date found (is in the filename)
-    dateFound = pd.to_datetime(fname[-14:-5])
-    
-    # link (can be created knowing the ID)
-    link = 'https://www.idealista.pt/imovel/'+fname[:-15]+'/'
-    
-    # remaining entries: 
-    # Beach, Type, Size (Uteis), Lote, Bathrooms, Year Built, Garage, Floor, Elevator, Energy Certificate, AC, Solar Panels, Piscina, Veranda, Terrace, Built-in Closets, Seaview, Riaview, Beach Distance, Ria Distance, Orientation
 
-    
