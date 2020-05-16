@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.linear_model import ElasticNet
 from sklearn.metrics import r2_score, mean_absolute_error
@@ -35,10 +36,6 @@ def getResults(estimator, X, Y):
     
     return r2, MAE, MAPE
 
-def makeSoup(url):
-    http = urllib3.PoolManager()
-    r = http.request("GET", url)
-    return BeautifulSoup(r.data)
     
 def myImpute(df_org, how = 'median'):
     
@@ -56,7 +53,7 @@ def myImpute(df_org, how = 'median'):
     return df
 
 
-mydf = pd.read_excel('Apartment PT.xlsx', sheet_name=0)
+mydf = pd.read_excel('Apartment_PT.xlsx', sheet_name=0)
 
 X = mydf.copy()
 
@@ -94,7 +91,6 @@ X = pd.get_dummies(X)
 Xm = X.to_numpy(dtype='float64')
 Ym = Y.to_numpy(dtype='float64').ravel()
 
-
 pls = PLSRegression(2)
 pls.fit(Xm, Ym)
 
@@ -108,4 +104,11 @@ eln = ElasticNet(l1_ratio=0.5)
 eln.fit(X0m, Ym)
 print("Elastic Net")
 r2, MAE, MAPE = getResults(eln, X0m, Ym)
+print("R2= {:4.2f}; MAE={:4.2f}k Euros; MAPE = {:4.1f}%".format(r2, MAE, MAPE))
+
+# RF
+RF = RandomForestRegressor(n_estimators = 30)
+RF.fit(Xm,Ym)
+print('Random Forest')
+r2, MAE, MAPE = getResults(RF, Xm, Ym)
 print("R2= {:4.2f}; MAE={:4.2f}k Euros; MAPE = {:4.1f}%".format(r2, MAE, MAPE))

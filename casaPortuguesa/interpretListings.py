@@ -57,11 +57,15 @@ def cleanString(myText):
 # add new listings in DB
 df = pd.read_excel('Apartment_PT.xlsx',index_col = 0,
                    sheet_name = 'DB')
+os.system('copy Apartment_PT.xlsx Apartment_PT_{}.xlsx'.format(pd.Timestamp.now().strftime('%d%b%Y')))
 
 df_new = pd.DataFrame(columns = df.columns)
 df_new.index.name = df.index.name
+moveFile = []
+
+fnames = [file for file in os.listdir('./pages_html/') if (file!='done') and (file.endswith('.html'))]
 # go over all new html files that haven't been read out yet (are not in folder 'done')
-for fname in [file for file in os.listdir('./pages_html/') if (file!='done') and (file.endswith('.html'))]:
+for fname in fnames:
     # read file in
     with open('./pages_html/'+fname,'r',encoding="utf-8") as f:
         page = f.read()
@@ -69,6 +73,7 @@ for fname in [file for file in os.listdir('./pages_html/') if (file!='done') and
     
     # remember ID
     ID = 'IDEALISTA_'+fname[:-15]
+    print("ID = {}".format(ID))
     
     beachText = cleanString(soup.find('a',{'class':'btn nav back icon-arrow-double-left'}).text)
     if 'nazare' in beachText:
@@ -80,7 +85,7 @@ for fname in [file for file in os.listdir('./pages_html/') if (file!='done') and
     price = float(soup.find('span',attrs = {'class':'info-data-price'}).text.replace('€',''))
     
     # size 
-    size = float(soup.find('div',attrs = {'class':'info-features'}).text.split('m² construídos')[0])
+    size = float(soup.find('div',attrs = {'class':'info-features'}).text.split('m² construídos')[0].split()[-1])
     
     # bedrooms
     for info in soup.find('div',attrs = {'class':'info-features'}).find_all('span')[::-1]:
@@ -106,8 +111,8 @@ for fname in [file for file in os.listdir('./pages_html/') if (file!='done') and
             
     # type   
     if ('moradia' in myText) and ('apartamento' in myText):
-        print(myText)
-        raise ValueError('The words moradia and apartamento occurred in the text, I dont know what to do.')
+        print('The words moradia and apartamento occurred in the text, I set type to "Apartment".')
+        myType = 'Apartment'
     elif ('apartamento' in myText): 
         myType = 'Apartment'
     elif (('moradia' in myText) or ('casa' in myText)):
@@ -122,8 +127,8 @@ for fname in [file for file in os.listdir('./pages_html/') if (file!='done') and
         
     # garage
     if ('garagem' in myText) and ('estacionamento' in myText):
-        print(myText)
-        raise ValueError('The words garagem and estacionamento occurred in the text, I dont know what to do.')
+        print('The words garagem and estacionamento occurred in the text, I set "Garage" to "Yes".')
+        garage = 'Yes'
     elif ('garagem' in myText): 
         garage = 'Yes'
     elif ('estacionamento' in myText):
@@ -241,8 +246,15 @@ for fname in [file for file in os.listdir('./pages_html/') if (file!='done') and
     df_new.loc[ID,'Orientation'] = ','.join(orientation) 
     df_new.loc[ID,'Link'] = link 
     
+    moveFile.append(fname)
+
+for f in moveFile:
+    os.rename('./pages_html/'+f, './pages_html/done/'+f)
+df_new.drop_duplicates()
 print(df_new)
-    
+df = df.append(df_new, ignore_index = True)
+df.to_excel('Apartment_PT.xlsx', index = False)
+
     # remaining entries: 
     # Lote, Energy Certificate, AC, Solar Panels, Orientation
     
