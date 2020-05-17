@@ -80,6 +80,8 @@ for fname in fnames:
         beach = 'Barra'
     elif 'encarnacao' in beachText:
         beach = 'Costa Nova'
+    elif 'boa hora' in beachText:
+        beach = 'Vagueira'
     
     # find price
     price = float(soup.find('span',attrs = {'class':'info-data-price'}).text.replace('€',''))

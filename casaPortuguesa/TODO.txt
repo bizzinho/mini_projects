@@ -3,19 +3,25 @@ CRAWLER
 INTERPRETER
 - store text files from annuncie for which no information could be extracted
 - remaining infos to be read out: Beach Distance, Ria Distance
+- store copies into archive folder, not main
 
 SANITY CHECKS
 - try to identify potential duplicates
+- find outliers using nipalsPCA
 
 DATA IMPUTATION
 - predict year, floor, energy based on other vars
 - predict lote of houses based on other vars
 
 REGRESSION
-- CV with elastic net
-- train/test set split
 - weird kink in linear method parity plot?
-
-MODEL VALIDATION
-- Residuals vs price
+- what to do when residuals has trend over output -> is this measured by R2?
 - investigate biggest outliers
+
+VISUALIZATION
+- Houseprice (range) over time
+- plot title for getResult
+
+ANALYSIS
+- highlight recent houses with very negative spread (and send email??)
+	- of particular interest if spread (much) larger than test error
