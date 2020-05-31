@@ -55,8 +55,7 @@ def cleanString(myText):
     return myText
 
 # add new listings in DB
-df = pd.read_excel('Apartment_PT.xlsx',index_col = 0,
-                   sheet_name = 'DB')
+df = pd.read_excel('Apartment_PT.xlsx',sheet_name = 0)
 os.system('copy Apartment_PT.xlsx Apartment_PT_{}.xlsx'.format(pd.Timestamp.now().strftime('%d%b%Y')))
 
 df_new = pd.DataFrame(columns = df.columns)
@@ -100,10 +99,16 @@ for fname in fnames:
     
     # link (can be created knowing the ID)
     link = 'https://www.idealista.pt/imovel/'+fname[:-15]+'/'
+
+    pieces =[]    
+    pieces.append(soup.find('span',{'class':'main-info__title-main'}))
+    pieces.append(soup.find('div',{'class':'comment'}))
+    pieces.append(soup.find('div',{'class':'details-property'}))
     
-    myText = soup.find('span',{'class':'main-info__title-main'}).get_text(separator=' ') + \
-            soup.find('div',{'class':'comment'}).get_text(separator=' ') + \
-            soup.find('div',{'class':'details-property'}).get_text(separator=' ')
+    myText = ''
+    for pce in pieces:
+        if pce is not None:
+            myText += pce.get_text(separator=' ')
     
     # clean up the string a bit
     myText = cleanString(myText)
@@ -247,6 +252,7 @@ for fname in fnames:
     df_new.loc[ID,'Ria Distance'] = None # XX
     df_new.loc[ID,'Orientation'] = ','.join(orientation) 
     df_new.loc[ID,'Link'] = link 
+    df_new.loc[ID,'Outlier'] = 'No' # outliers are houses with very high residual caused by special causes, e.g., total fixer-upper.
     
     moveFile.append(fname)
 

@@ -51,10 +51,11 @@ for myID in id_list:
             soup = BeautifulSoup(body, features="html.parser")
             links = soup.find_all('a')
             caseNuove = [link['href'] for link in links if (link.get_text() != '') and 
+                         ('anadaveawesome' not in link.get_text()) and
                          (link.get_text() != 'As tuas pesquisas') and 
                          (link.get_text() != 'Contactar') and 
-                         ('Ver todos os anúncios de Casas' not in link.get_text()) and 
-                         (link.get_text() != 'Cancelar a subscrição') and 
+                         ('Ver todos os' not in link.get_text()) and 
+                         ('Cancelar' not in link.get_text()) and 
                          (link.get_text() != 'Faz download da app do idealista') and not 
                          (('Ver' in link.get_text()) and ('fotos' in link.get_text()))]
             print("New listings in this mail: {}".format(len(caseNuove)))

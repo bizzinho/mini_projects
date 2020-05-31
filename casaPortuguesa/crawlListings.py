@@ -41,7 +41,7 @@ newBacklog = sorted(list(set(backlog) - set(toBeRemoved)))
 if len(newBacklog) == 0:
     print("All listings in the backlog were saved locally!")
 else:
-    print('There are {} listings remaining in the backlog. Solve the captcha or try at a later date.'.format{len(newBacklog)})
+    print('There are {} listings remaining in the backlog. Solve the captcha or try at a later date.'.format(len(newBacklog)))
 
 with open('backlog.txt','w+') as f:
     f.write("\n".join(sorted(newBacklog)))

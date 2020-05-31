@@ -7,7 +7,6 @@ INTERPRETER
 
 SANITY CHECKS
 - try to identify potential duplicates
-- find outliers using nipalsPCA
 
 DATA IMPUTATION
 - predict year, floor, energy based on other vars
@@ -16,6 +15,7 @@ DATA IMPUTATION
 REGRESSION
 - weird kink in linear method parity plot?
 - what to do when residuals has trend over output -> is this measured by R2?
+	- check distribution of NaNs vs. price
 - investigate biggest outliers
 
 VISUALIZATION

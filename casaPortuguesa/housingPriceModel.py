@@ -13,6 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from sklearn.model_selection import train_test_split, KFold, cross_validate
+from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.linear_model import ElasticNet
@@ -31,11 +32,12 @@ def getResults(estimator, X, Y, incomingax = None, returnAx = False):
     ax[0].set_xlabel("Observed Price k€")
     ax[0].set_ylabel("Predicted Price k€")
     
-    ax[1].plot(sorted(Y),[x for _,x in sorted(zip(Y,Ypred-Y))])
+    ax[1].scatter(sorted(Ypred),[x for _,x in sorted(zip(Y,Ypred-Y))])
     if incomingax is None:
         ax[1].plot(Y,np.zeros(Y.shape),'k--')
-    ax[1].set_xlabel("Observed Price k€")
+    ax[1].set_xlabel("Predicted Price k€")
     ax[1].set_ylabel("Residual k€")
+    plt.tight_layout()
     plt.show()
     r2 = r2_score(Y, Ypred)
     MAE = median_absolute_error(Y, Ypred)
@@ -65,8 +67,11 @@ def myImpute(df_org, how = 'median'):
 
 
 mydf = pd.read_excel('Apartment_PT.xlsx', sheet_name=0)
+mydf = mydf[mydf.Outlier == 'No']
+mydf = mydf.reset_index(drop = True)
 
 X = mydf.copy()
+
 
 orientations = ['E','N','S','W']
 for o in orientations:
@@ -97,11 +102,27 @@ myCats = ['Beach','Type','Energy Certificate', 'Garage', 'Elevator','AC','Solar 
 
 X[myCats] = X[myCats].astype('category')
 
-X = pd.get_dummies(X)
+X = pd.get_dummies(X, drop_first = True)
 
 Xm = X.to_numpy(dtype='float64')
 xcols = X.columns.values
 Ym = Y.to_numpy(dtype='float64').ravel()
+
+scaler_all = StandardScaler()
+X0 = scaler_all.fit_transform(Xm)
+pca = PCA(n_components = 2)
+XS = pca.fit_transform(X0)
+plt.figure()
+loadings = pca.components_.T
+for loading,col in zip(loadings,xcols):
+    plt.annotate(col,loading)
+plt.xlim((np.min(loadings[:,0])-0.5,np.max(loadings[:,0])+0.5))
+plt.ylim((np.min(loadings[:,1])-0.5,np.max(loadings[:,1])+0.5))
+plt.figure()
+for i, score in enumerate(XS):
+    plt.annotate(i,score)
+plt.xlim((np.min(XS[:,0])-0.5,np.max(XS[:,0])+0.5))
+plt.ylim((np.min(XS[:,1])-0.5,np.max(XS[:,1])+0.5))
 
 X_train, X_test, Y_train, Y_test = train_test_split(Xm, Ym,test_size = 0.15, stratify = mydf.Beach)
 scaler = StandardScaler()
@@ -130,13 +151,15 @@ print("R2= {:4.2f}; MAE={:4.2f}k Euros; MAPE = {:4.1f}%".format(r2, MAE, MAPE))
 print("Test")
 r2, MAE, MAPE = getResults(eln, X0_test, Y_test, incomingax = ax)
 print("R2= {:4.2f}; MAE={:4.2f}k Euros; MAPE = {:4.1f}%".format(r2, MAE, MAPE))
-
+sys.exit()
 # RF
 estilist = np.linspace(10,500,5)
-mdlist = np.arange(4,5)
+mdlist = np.arange(5,6)
 
-r2s = np.zeros((len(estilist),len(mdlist),5))
-maes = np.zeros((len(estilist),len(mdlist),5))
+kf = KFold(shuffle = True, n_splits = 10)
+
+r2s = np.zeros((len(estilist),len(mdlist),kf.get_n_splits()))
+maes = np.zeros((len(estilist),len(mdlist),kf.get_n_splits()))
 for i, estis in enumerate(estilist):
     for j, maxdis in enumerate(mdlist):
         RF = RandomForestRegressor(n_estimators = int(estis), max_depth = maxdis)
@@ -144,7 +167,7 @@ for i, estis in enumerate(estilist):
         
         # yhat_test = RF.predict(X_test)
         # maes[i,j] = mean_absolute_error(Y_test,yhat_test)
-        result = cross_validate(RF, X = X_train, y = Y_train, scoring = ['neg_median_absolute_error','r2' ], cv = 5)
+        result = cross_validate(RF, X = X_train, y = Y_train, scoring = ['neg_median_absolute_error','r2' ], cv = kf)
         r2s[i,j,:] = result['test_r2']
         maes[i,j,:] = result['test_neg_median_absolute_error']
 
@@ -152,7 +175,8 @@ avgR2s = np.mean(r2s,axis=2)
 avgMaes = np.mean(maes,axis=2)
 bestCombo = np.unravel_index(np.argmax(avgMaes),avgMaes.shape)
 
-RF = RandomForestRegressor(n_estimators = int(estilist[bestCombo[0]]), max_depth = mdlist[bestCombo[1]])
+RF = RandomForestRegressor(n_estimators = 50, max_depth = 3)
+# RF = RandomForestRegressor(n_estimators = int(estilist[bestCombo[0]]), max_depth = mdlist[bestCombo[1]])
 RF.fit(X_train,Y_train)
 
 print('Random Forest')
@@ -164,6 +188,6 @@ r2, MAE, MAPE = getResults(RF, X_test, Y_test, incomingax = ax)
 print("R2= {:4.2f}; MAE={:4.2f}k Euros; MAPE = {:4.1f}%".format(r2, MAE, MAPE))
 
 mydf['predPrice'] = RF.predict(Xm)
-mydf['spread'] = mydf['Price k$'] - mydf['predPrice']
+mydf['spread'] = mydf['Price k$'] - mydf['predPrice'] # a positive spread means bad deal
 mydf.sort_values(by = 'spread')
 mydf = mydf.sort_values(by = 'spread')
